@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@theme {
+  --font-sans: "M PLUS Rounded 1c", "Inter", system-ui, -apple-system, sans-serif;
+  
+  --color-primary-pink: #f97316; /* Vibrant Orange */
+  --color-primary-rose: #ea580c; /* Deep Orange */
+  --color-soft-blue: #38bdf8; /* Sky Blue */
+  --color-baby-bg: #fffbeb; /* Warm Cream / amber-50 */
+  --color-card-bg: #ffffff;
+}
+
+body {
+  background-color: var(--color-baby-bg);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Custom leaflet bubble styling to match our cute rounded pastel look */
+.leaflet-popup-content-wrapper {
+  border-radius: 20px !important;
+  box-shadow: 0 10px 25px rgba(249, 115, 22, 0.15) !important;
+  border: 3px solid #f97316 !important;
+}
+
+.leaflet-popup-tip {
+  border: 3px solid #f97316 !important;
+}
+
+.custom-baby-marker {
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-baby-marker:hover {
+  transform: scale(1.2);
+}
+

@@ -1,0 +1,15 @@
+body { margin: 0; padding: 0; }
+#controls { padding: 10px; background: #f8f9fa; }
+#map { height: 90vh; width: 100%; }
+.buttons { margin-top: 10px; }
+button { padding: 8px; cursor: pointer; }
+
+/* 絵文字ピンのスタイル */
+.pin-icon {
+    font-size: 24px;
+    text-align: center;
+    background: white;
+    border-radius: 50%;
+    border: 2px solid #333;
+    line-height: 24px;
+}

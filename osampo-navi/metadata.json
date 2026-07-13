@@ -1,0 +1,6 @@
+{
+  "name": "あおもり・いわて子育てお助けマップ",
+  "description": "青森県・岩手県の子育て世帯を応援する、お助け設備＆遊び場マップ。授乳スペースやオムツ替えシート、ベビーカー入店、調乳お湯対応などの設備フィルター搭載。",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

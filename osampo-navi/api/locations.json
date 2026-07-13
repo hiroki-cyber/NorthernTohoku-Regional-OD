@@ -1,0 +1,20 @@
+import fs from 'fs';
+import path from 'path';
+
+export default function handler(req, res) {
+  // 1. 自分のサイト（osampo-navi）以外からのアクセスをブロック (CORS対策)
+  res.setHeader('Access-Control-Allow-Origin', 'https://osampo-navi.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  
+  try {
+    // 2. data/locations.json から安全にデータを読み込む
+    const jsonDirectory = path.join(process.cwd(), 'data');
+    const filePath = path.join(jsonDirectory, 'locations.json');
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+    
+    // 3. データをJSONとして返却
+    res.status(200).json(JSON.parse(fileContents));
+  } catch (error) {
+    res.status(500).json({ error: 'データの読み込みに失敗しました' });
+  }
+}

@@ -1,0 +1,20 @@
+
+◎パパマママップ
+
+
+
+sb_publishable_hqAuvsv44kDh6XzqwmEZNg_d3uaNMe0
+
+
+sb_publishable_hqAuvsv44kDh6XzqwmEZNg_d3uaNMe0
+
+
+データAPI
+API URL
+
+https://qdqbnuonpeqxsddpexab.supabase.co/rest/v1/
+
+
+
+公開可能なキー　ANONキー
+sb_publishable_hqAuvsv44kDh6XzqwmEZNg_d3uaNMe0

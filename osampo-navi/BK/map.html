@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>おでかけしよう！パパママ応援マップ</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f7f9f6;
+        }
+        #header {
+            background-color: #ffffff;
+            padding: 10px 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+        h1 {
+            font-size: 1.1rem;
+            margin: 0 0 8px 0;
+            color: #2e7d32;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* スマホでボタンが縦に何列も並ばないよう、横スクロール化 */
+        #filters {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 6px;
+            -webkit-overflow-scrolling: touch; /* iOSのスムーズスクロール */
+        }
+        /* スクロールバーをすっきり見せる（任意） */
+        #filters::-webkit-scrollbar {
+            height: 4px;
+        }
+        #filters::-webkit-scrollbar-thumb {
+            background: #dddddd;
+            border-radius: 10px;
+        }
+        .filter-btn {
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: #495057;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            flex-shrink: 0; /* 子要素が潰れないように固定 */
+        }
+        .filter-btn:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+        }
+        .filter-btn.active {
+            background-color: #2e7d32;
+            color: #ffffff;
+            border-color: #2e7d32;
+            box-shadow: 0 2px 5px rgba(46,125,50,0.3);
+        }
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            padding: 4px;
+        }
+        .popup-title {
+            font-weight: bold;
+            font-size: 1rem;
+            margin-bottom: 4px;
+            color: #1b5e20;
+            border-bottom: 2px solid #e8f5e9;
+            padding-bottom: 4px;
+        }
+        .popup-info {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #333333;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            border-radius: 20px;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+        .custom-marker-icon {
+            filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.35));
+        }
+
+        /* 📱 スマホ画面（画面幅768px以下）専用の調整 */
+        @media (max-width: 768px) {
+            #header {
+                padding: 8px 10px;
+            }
+            h1 {
+                font-size: 1rem;
+                margin-bottom: 6px;
+            }
+            .filter-btn {
+                padding: 8px 14px; /* 指で押しやすいように少し大きく */
+                font-size: 0.85rem;
+            }
+            .leaflet-popup-content {
+                width: 220px !important; /* スマホの画面からはみ出さないサイズに制限 */
+                margin: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>🍀 パパママおでかけマップ</h1>
+        <div id="filters">
+            <button class="filter-btn active" onclick="filterCategory('all')">全て表示</button>
+            <button class="filter-btn" onclick="filterCategory('hotel')">🏨 幼児も安心の宿</button>
+            <button class="filter-btn" onclick="filterCategory('nature')">⛰️ 大自然・名所</button>
+            <button class="filter-btn" onclick="filterCategory('playground')">🛝 公園・遊具広場</button>
+            <button class="filter-btn" onclick="filterCategory('experience')">🐴 牧場・収穫体験</button>
+            <button class="filter-btn" onclick="filterCategory('shopping')">🛍️ 商業施設</button>
+            <button class="filter-btn" onclick="filterCategory('public')">🏛️ 公共/支援/主要駅</button>
+            <button class="filter-btn" onclick="filterCategory('museum')">🎨 博物館/水族館</button>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // スマホで見やすいように初期のズームレベルを「8」に少し引き気味に設定
+        const map = L.map('map').setView([40.5122, 141.4884], 8);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const categoryConfig = {
+            hotel: { emoji: '🏨', label: '幼児も安心の宿・温泉', color: '#006064' },
+            nature: { emoji: '⛰️', label: '大自然・名所旧跡', color: '#2e7d32' },
+            playground: { emoji: '🛝', label: '公園・各市町村の遊具広場', color: '#1b5e20' },
+            experience: { emoji: '🐴', label: '牧場・乗馬・収穫', color: '#795548' },
+            shopping: { emoji: '🛍️', label: '商業施設', color: '#ff8f00' },
+            public: { emoji: '🏛️', label: '公共/支援/主要駅', color: '#1565c0' },
+            museum: { emoji: '🎨', label: '博物館/水族館', color: '#6a1b9a' }
+        };
+
+        const locations = [
+            // ==================== 博物館・水族館 ====================
+            { "name": "青森県立浅虫水族館", "category": "museum", "lat": 40.8922, "lng": 140.8655, "amenities": "🐬トンネル水槽や大迫力のイルカショーが幼児に大人気！館内はスロープ完備でベビーカー移動も快適。おむつ台・授乳室完備。", "hours": "9:00-17:00", "holidays": "年中無休" },
+            { "name": "八戸市水産科学館マリエント", "category": "museum", "lat": 40.5375, "lng": 141.5645, "amenities": "🐟ウミネコや八戸の海の生き物とふれあえる大人気スポット。幼児向けの「タッチの里」や絶景の展望ロビー、おむつ替え可能な多目的トイレあり。", "hours": "9:00-17:00", "holidays": "年中無休" },
+            { "name": "八戸市是川縄文館", "category": "museum", "lat": 40.4695, "lng": 141.4910, "amenities": "🎨国宝「風張遺跡の合掌土偶」を展示。非常に綺麗で広々とした館内は幼児とのお散歩見学にも快適。おむつ替え・授乳室スペースあり。", "hours": "9:00-17:00", "holidays": "月曜、祝日の翌日" },
+            { "name": "八戸市博物館", "category": "museum", "lat": 40.5050, "lng": 141.4675, "amenities": "🎨根城跡に隣接する博物館。芝生広場と合わせてのどかに過ごせます。多目的トイレ（おむつ替えシート対応）も館内に完備。", "hours": "9:00-17:00", "holidays": "月曜、第一火曜" },
+            { "name": "青森県立三沢航空科学館", "category": "museum", "lat": 40.6975, "lng": 141.4050, "amenities": "🚀航空と科学のテーマパーク。幼児が安心して室内で体を動かせる「キッズプレイランド」や科学体験、大人気の屋外遊具広場、完璧な授乳室・おむつ台完備！", "hours": "9:00-17:00", "holidays": "月曜（祝日の場合は翌日）" },
+
+            // ==================== 公共・支援・主要駅 ====================
+            { "name": "八戸ポータルミュージアムはっち", "category": "public", "lat": 40.5103, "lng": 141.4885, "amenities": "🏛️4階の無料室内遊び場「こどもはっち」は幼児の天国！木製遊具が充実し、おむつ台・授乳室・子ども用洗面台を完備した超安心拠点。", "hours": "9:00-21:00（こどもはっちは16:30まで）", "holidays": "第2火曜日" },
+            { "name": "八戸市庁（八戸市役所）", "category": "public", "lat": 40.5122, "lng": 141.4884, "amenities": "🏛️庁舎内におむつ替えベッド付きの多目的トイレあり。中心街での急なおむつトラブルや困りごとの強い味方。", "hours": "8:30-17:15", "holidays": "土日祝日" },
+            { "name": "JR東日本・青い森鉄道：八戸駅", "category": "public", "lat": 40.5090, "lng": 141.4315, "amenities": "🚄東北新幹線の停車駅。新幹線改札内および待合室付近におむつ台付き多目的トイレ・授乳スペースあり。乗り継ぎの合間の休憩に最適です。", "hours": "始発-終電", "holidays": "年中無休" },
+            { "name": "JR東日本：新青森駅", "category": "public", "lat": 40.8275, "lng": 140.6935, "amenities": "🚄青森の玄関口。駅構内におむつ交換台、授乳室完備。1階の「あおもり旬味館」には子連れで利用しやすい休憩スペースや飲食店も多数。", "hours": "始発-終電", "holidays": "年中無休" },
+            { "name": "JR東日本・IGRいわて銀河鉄道：二戸駅", "category": "public", "lat": 40.2605, "lng": 141.2855, "amenities": "🚄岩手県北の主要駅。なにゃーと（物産センター）が隣接。駅構内および隣接施設におむつ台付き多目的トイレがあり、ドライブや鉄道旅のオアシス。", "hours": "始発-終電", "holidays": "年中無休" },
+
+            // ==================== 三八上北の各市町村設置の公園 ====================
+            { "name": "八戸市：こどもの国（八戸公園）", "category": "playground", "lat": 40.4735, "lng": 141.4925, "amenities": "🛝大型複合遊具、遊園地、室内遊び場（わくわくハウス）に完璧な授乳室・おむつ台完備。エリア最強の公園。", "hours": "9:00-16:45", "holidays": "月曜、冬期休園" },
+            { "name": "八戸市：長根公園（わくわく広場）", "category": "playground", "lat": 40.5115, "lng": 141.4815, "amenities": "🛝最新の大型遊具や幼児専用囲いスペースあり。隣接施設におむつ台・休憩ロビーあり。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "八戸市：新井田川緑地（ロボット公園）", "category": "playground", "lat": 40.5050, "lng": 141.5150, "amenities": "𚚰水道・🚻トイレあり。楽しいロボット型遊具と広い芝生。プチ水遊びや砂場遊びに大活躍。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "八戸市：東運動公園（ちびっこ広場）", "category": "playground", "lat": 40.5110, "lng": 141.5350, "amenities": "𚚰水道・🚻多目的トイレあり。幼児向けの可愛い滑り台や砂場があり、のんびり泥遊びができる穴場。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "八戸市：本八戸駅前北緑地", "category": "playground", "lat": 40.5165, "lng": 141.4895, "amenities": "𚚰水道・🚻トイレあり。駅前の小さな緑地。ドライブ中の気分転換やちょっとした外遊びに好都合。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "三沢市：三沢中央公園", "category": "playground", "lat": 40.6845, "lng": 141.3685, "amenities": "🛝大型遊具・𚚰水道・🚻おむつ台トイレ。きれいに整備された芝生と幼児用コンビ遊具。市役所近くで安心。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "十和田市：三本木公園", "category": "playground", "lat": 40.6120, "lng": 141.2185, "amenities": "𚚰水道・🚻トイレあり。街なかの落ち着いた公園。幼児サイズの小さな滑り台やスプリング遊具あり。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "おいらせ町：下田公園", "category": "playground", "lat": 40.5985, "lng": 141.4285, "amenities": "🛝幼児向け複合遊具・𚚰水道・🚻トイレあり。池の周りのきれいな遊歩道はヨチヨチ歩きのお散歩に最適。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "五戸町：五戸町小林公園", "category": "playground", "lat": 40.5180, "lng": 141.3180, "amenities": "𚚰水道・🚻トイレあり。幼児が五感を使ってのんびり遊べる静かな町営公園。桜の時期も綺麗です。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "三戸町：城山公園（三戸城跡）", "category": "playground", "lat": 40.3725, "lng": 141.2615, "amenities": "🛝「11ぴきのねこ」の絵本でおなじみの石像が各所に！ねこ達を探しながら幼児と楽しくお散歩できます。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "南部町：チェリリン村（遊具広場）", "category": "playground", "lat": 40.4550, "lng": 141.3520, "amenities": "🛝巨大カブトムシの遊具や幼児向けちびっこ広場あり。豊かな自然の中でおむつ替えトイレも完備。", "hours": "9:00-17:00", "holidays": "期間中無休" },
+            { "name": "階上町：道仏川架道橋公園", "category": "playground", "lat": 40.4515, "lng": 141.6120, "amenities": "𚚰水道・🚻トイレあり。新幹線がすぐ近くで見える穴場の町営公園！乗り物好きの幼児は大喜びです。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "六戸町：舘野公園", "category": "playground", "lat": 40.6215, "lng": 141.3120, "amenities": "🛝幼児向けスプリング遊具・𚚰水道・🚻トイレあり。さつき沼を囲む芝生が広大でお散歩が心地よい公園。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "東北町：わかさぎ公園（小川原湖畔）", "category": "playground", "lat": 40.7250, "lng": 141.2520, "amenities": "🛝ちびっこ広場遊具・𚚰水道・🚻トイレ。穏やかな湖畔沿い。幼児の砂遊びや足元パシャパシャ水遊びに最適。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "七戸町：七戸町中央公園", "category": "playground", "lat": 40.7020, "lng": 141.1510, "amenities": "🛝コンビネーション遊具・𚚰水道・🚻トイレ。芝生がとても広く、歩きはじめの幼児が転んでも痛くありません。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "横浜町：横浜町ふれあい広場", "category": "playground", "lat": 41.0820, "lng": 141.2510, "amenities": "𚚰水道・🚻トイレあり。道の駅「菜の花プラザ」のすぐ裏手。ドライブ休憩がてら安全に外遊びができる空間。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "野辺地町：愛宕公園", "category": "playground", "lat": 40.8655, "lng": 141.1255, "amenities": "🛝遊具あり・𚚰水道・🚻トイレ。町を一望できるのどかな公園。幼児向け滑り台や、芝生でおやつタイムに最適。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "六ヶ所村：大石総合運動公園（ちびっこ広場）", "category": "playground", "lat": 40.9650, "lng": 141.3620, "amenities": "🛝最新のマウンテン遊具や幼児用安全遊具がズラリ。多目的トイレ・おむつ替え台も非常に綺麗で安心。", "hours": "9:00-17:00", "holidays": "月曜" },
+
+            // ==================== 岩手県北の各市町村設置の公園 ====================
+            { "name": "久慈市：巽山公園", "category": "playground", "lat": 40.1885, "lng": 141.7725, "amenities": "🛝砂場・幼児ブランコ・𚚰水道・🚻トイレ。街なかの高台にあり、幼児が手を洗ったりベンチで休みやすい憩いの場。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "二戸市：馬仙峡公園", "category": "playground", "lat": 40.2485, "lng": 141.2915, "amenities": "𚚰水道・🚻トイレあり。男神岩・女神岩を望む絶景の芝生広場。幼児がのびのび駆け回るのに最高です。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "二戸市：落の沢児童公園", "category": "playground", "lat": 40.2680, "lng": 141.2990, "amenities": "🛝小型滑り台・𚚰水道・🚻トイレ。地元密着の静かな児童公園。幼児のペースで安全に遊ばせられます。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "一戸町：一戸まつり広場", "category": "playground", "lat": 40.1325, "lng": 141.2985, "amenities": "𚚰水道・🚻トイレ。開けた気持ちいい川沿いの広場。御所野縄文公園の散策と合わせて立ち寄れるスポット。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "軽米町：ミレットパーク", "category": "playground", "lat": 40.3115, "lng": 141.4215, "amenities": "𚚰水道・🚻トイレあり。大自然に囲まれた広い自由広場。水道の水をちょっと触って涼むなど、のんびり空間。", "hours": "9:00-17:00", "holidays": "期間中無休" },
+            { "name": "軽米町：文化交流センター (ピヨピヨ広場)", "category": "playground", "lat": 40.3255, "lng": 141.4655, "amenities": "🛝ピカピカの超快適室内遊具！雨や雪、暑い日でも完全屋内でおむつ替え・授乳をしながら安全に遊べます。", "hours": "9:00-17:00", "holidays": "月曜" },
+            { "name": "九戸村：道の駅おりつめ（裏手広場）", "category": "playground", "lat": 40.2415, "lng": 141.4250, "amenities": "🛝プチ遊具・𚚰水道・🚻おむつ台（道の駅内）。名物オドデ様のすぐ近く。幼児向け木製遊具が少しあり休憩に最高。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "洋野町：種市海浜公園", "category": "playground", "lat": 40.4020, "lng": 141.7150, "amenities": "🛝ちびっこ遊具・𚚰水道・🚻トイレ。海風が心地よい芝生. 穏やかな波打ち際を幼児と一緒に歩いて楽しめます。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "洋野町：大野キャンパス（ちびっこ広場）", "category": "playground", "lat": 40.2850, "lng": 141.6210, "amenities": "🛝木製遊具や広い芝生。動物ふれあいも隣接しており、おむつ替え可能な多目的トイレも各所に完備。", "hours": "9:00-17:00", "holidays": "年中無休" },
+            { "name": "葛巻町：くずまき総合運動公園", "category": "playground", "lat": 40.0380, "lng": 141.4320, "amenities": "🛝幼児向けコンビ遊具・𚚰水道・🚻トイレあり。山に囲まれた空気のきれいな運動公園内の安全な遊び場。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "普代村：普代駅前ふれあい広場", "category": "playground", "lat": 40.0055, "lng": 141.8855, "amenities": "𚚰水道・🚻多目的トイレ（駅舎内）。駅前すぐ。三鉄を見ながらヨチヨチ歩き。おむつ替えや水分補給も安心。", "hours": "入園自由", "holidays": "無休" },
+            { "name": "野田村：野田玉川マリンパーク", "category": "playground", "lat": 40.0815, "lng": 141.8215, "amenities": "𚚰水道・🚻トイレあり。綺麗な太平洋を一望できる広々とした芝生エリア。遮るものがなく幼児の走り回りに最適。", "hours": "入園自由", "holidays": "無休" },
+
+            // ==================== その他主要スポット ====================
+            { "name": "下風呂温泉 海峡の宿 おおま", "category": "hotel", "lat": 41.4230, "lng": 141.0195, "amenities": "♨️幼児連れ向け和室プラン、子ども用浴衣・食器貸出あり。アットホームでパパママも安心の温泉宿。", "hours": "イン15:00-", "holidays": "無休" },
+            { "name": "浅虫温泉 南部屋・海扇閣", "category": "hotel", "lat": 40.8920, "lng": 140.8610, "amenities": "♨️幼児歓迎和室プランあり。ベビーベッド、子ども用椅子の貸出やおむつ用ゴミ箱など手厚いサービス。", "hours": "イン15:00-", "holidays": "無休" },
+            { "name": "種差海岸（天然芝生地）", "category": "nature", "lat": 40.5415, "lng": 141.5705, "amenities": "𚚰水道・🚻多目的トイレあり。圧倒的な天然芝生！インフォメーションセンターに完璧な授乳室・おむつ台あり。", "hours": "インフォ 9:00-17:00", "holidays": "年中無休" },
+            { "name": "駒っこランド（十和田市馬事公苑）", "category": "experience", "lat": 40.6285, "lng": 141.2855, "amenities": "🐴ポニー乗馬・エサやり・🛝大型遊具！ニンジンをあげる体験が大人気。馬の超大型滑り台など1日中遊べる聖地。おむつ台・授乳室あり。", "hours": "9:00-17:00", "holidays": "月曜" },
+            { "name": "ラピア (2F 赤ちゃん休憩室)", "category": "shopping", "lat": 40.5215, "lng": 141.5035, "amenities": "広い授乳室、おむつ替えベッド多数、調乳用給湯器、子供用トイレまで完備。買い物の一大拠点。", "hours": "10:00-21:00", "holidays": "無休" },
+            { "name": "イオンモール下田 (2F ベビールーム)", "category": "shopping", "lat": 40.6012, "lng": 141.4125, "amenities": "超広大なベビールーム。おむつ台多数、離乳食スペース、調乳給湯器、体重計を完備。", "hours": "9:00-21:00", "holidays": "無休" },
+            { "name": "盛岡駅ビル フェザン (2F)", "category": "shopping", "lat": 39.7032, "lng": 141.1365, "amenities": "岩手「赤ちゃんの駅」指定。個室授乳室、おむつ台多数。インフォでお湯提供あり。", "hours": "10:00-20:30", "holidays": "不定休" }
+        ];
+
+        let markers = [];
+
+        function renderMarkers(categoryFilter = 'all') {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            locations.forEach(loc => {
+                if (categoryFilter !== 'all' && loc.category !== categoryFilter) {
+                    return;
+                }
+
+                const config = categoryConfig[loc.category] || { emoji: '📍', label: 'その他', color: '#6c757d' };
+
+                const customIcon = L.divIcon({
+                    html: `<div style="font-size: 26px; text-align: center; line-height: 1;">${config.emoji}</div>`,
+                    className: 'custom-marker-icon',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                const popupContent = `
+                    <div class="popup-title">${loc.name}</div>
+                    <span class="badge" style="background-color: ${config.color}">${config.label}</span>
+                    <div class="popup-info">
+                        <strong>🌟 パパママ安心＆おすすめポイント:</strong><br>${loc.amenities}<br><br>
+                        <strong>🕒 時間 / アクセス:</strong> ${loc.hours}<br>
+                        <strong>📅 定休日:</strong> ${loc.holidays}
+                    </div>
+                `;
+
+                const marker = L.marker([loc.lat, loc.lng], { icon: customIcon })
+                    .bindPopup(popupContent);
+                
+                marker.addTo(map);
+                markers.push(marker);
+            });
+        }
+
+        function filterCategory(category) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderMarkers(category);
+        }
+
+        renderMarkers('all');
+    </script>
+</body>
+</html>
