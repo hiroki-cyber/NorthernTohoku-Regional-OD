@@ -1,11 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/', // ← ここを '/' にします
-  server: {
-    port: 3000,
-  },
+  base: '/NorthernTohoku-Regional-OD/', // ← これを追加
 });
