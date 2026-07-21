@@ -2,13 +2,15 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />    
     <meta name="viewport" content="notranslate" />
     <title>PAPA & MAMA クチコミマップ</title>
+    <!-- 地図の表示崩れを防ぐスタイル -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- ↓ 先頭の / を削除して相対パスにします -->
+    <script type="module" src="src/main.tsx"></script>
   </body>
 </html>
-
