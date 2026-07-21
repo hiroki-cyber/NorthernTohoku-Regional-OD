@@ -42,10 +42,9 @@ function App() {
   };
 
   return (
-    // PCでは横並び(flex-row)、スマホでは縦並び(flex-col)にする設定です
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-slate-50 text-slate-800 font-sans">
       
-      {/* サイドバー（スマホでは上部/高さ制限、PCでは左側に配置） */}
+      {/* 左側（または上）：サイドバー / 検索領域 */}
       <aside className="w-full md:w-80 lg:w-96 h-1/3 md:h-full bg-white flex flex-col z-10 shadow-lg border-r border-slate-200 overflow-y-auto">
         <header className="bg-indigo-600 text-white p-4 shadow-md">
           <h1 className="text-xl font-bold">子育て支援マップ</h1>
@@ -63,20 +62,13 @@ function App() {
         </div>
       </aside>
 
-      {/* マップ領域（スマホでは下部、PCでは右側に自動で広がります） */}
+      {/* 右側（または下）：マップ表示領域 */}
       <main className="w-full md:flex-1 h-2/3 md:h-full relative bg-slate-100">
         <div id="map" className="w-full h-full">
-          {/* ここに Leaflet などの地図コンポーネントが入ります */}
+          {/* ここにマップが入ります */}
         </div>
       </main>
 
-    </div>
-  );
-        {/* マップやリストを表示するエリア */}
-        <div>
-          {selectedSpot && <p>選択中: {selectedSpot.name}</p>}
-        </div>
-      </main>
     </div>
   );
 }
