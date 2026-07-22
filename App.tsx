@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { Location } from './data';
 import locationsData from './locations.json';
 
-// 2点間の距離(km)を計算する関数
+// 距離計算
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -14,47 +14,33 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// 📍 目立つ大きなアイコン（サイズアップ 48px）
+// ピンの大きさ（大きくて見やすい44pxサイズ）
 const createCustomIcon = (category?: string, name?: string) => {
   let emoji = '📍';
   let bgColor = '#64748b';
 
   const textToSearch = `${category || ''} ${name || ''}`;
 
-  if (textToSearch.includes('公園') || textToSearch.includes('広場') || textToSearch.includes('遊び場') || textToSearch.includes('こども園') || textToSearch.includes('キャンプ場')) {
+  if (textToSearch.includes('公園') || textToSearch.includes('広場') || textToSearch.includes('遊び場') || textToSearch.includes('こども園')) {
     emoji = '🛝';
     bgColor = '#16a34a';
-  } else if (textToSearch.includes('食事') || textToSearch.includes('カフェ') || textToSearch.includes('グルメ') || textToSearch.includes('レストラン') || textToSearch.includes('食堂') || textToSearch.includes('居酒屋') || textToSearch.includes('寿司') || textToSearch.includes('ステーキ') || textToSearch.includes('ドーナツ') || textToSearch.includes('スターバックス')) {
+  } else if (textToSearch.includes('食事') || textToSearch.includes('カフェ') || textToSearch.includes('レストラン') || textToSearch.includes('食堂')) {
     emoji = '🍴';
     bgColor = '#e11d48';
-  } else if (textToSearch.includes('買い物') || textToSearch.includes('スーパー') || textToSearch.includes('ユニバース') || textToSearch.includes('イオン') || textToSearch.includes('モール') || textToSearch.includes('マエダ') || textToSearch.includes('いとく') || textToSearch.includes('西松屋') || textToSearch.includes('ドラッグ') || textToSearch.includes('薬王堂') || textToSearch.includes('ツルハ') || textToSearch.includes('カワチ') || textToSearch.includes('ローソン') || textToSearch.includes('セブン') || textToSearch.includes('ファミリーマート')) {
+  } else if (textToSearch.includes('買い物') || textToSearch.includes('スーパー') || textToSearch.includes('イオン') || textToSearch.includes('西松屋')) {
     emoji = '🛒';
     bgColor = '#ea580c';
-  } else if (textToSearch.includes('道の駅') || textToSearch.includes('観光') || textToSearch.includes('美術館') || textToSearch.includes('水族館') || textToSearch.includes('科学館') || textToSearch.includes('温泉') || textToSearch.includes('ホテル') || textToSearch.includes('ロープウェー')) {
+  } else if (textToSearch.includes('道の駅') || textToSearch.includes('観光') || textToSearch.includes('温泉') || textToSearch.includes('水族館')) {
     emoji = '🍦';
     bgColor = '#9333ea';
-  } else if (textToSearch.includes('おむつ') || textToSearch.includes('トイレ')) {
-    emoji = '🛏️';
-    bgColor = '#0284c7';
-  } else if (textToSearch.includes('授乳') || textToSearch.includes('ミルク')) {
-    emoji = '🍼';
-    bgColor = '#db2777';
-  } else if (textToSearch.includes('病院') || textToSearch.includes('クリニック') || textToSearch.includes('薬局') || textToSearch.includes('支援') || textToSearch.includes('プラザ') || textToSearch.includes('児童館')) {
+  } else if (textToSearch.includes('病院') || textToSearch.includes('クリニック') || textToSearch.includes('薬局') || textToSearch.includes('支援')) {
     emoji = '🏥';
     bgColor = '#059669';
-  } else if (textToSearch.includes('郵便局') || textToSearch.includes('役所') || textToSearch.includes('市民センター') || textToSearch.includes('税務署')) {
-    emoji = '🏛️';
-    bgColor = '#4f46e5';
-  } else if (textToSearch.includes('トヨタ') || textToSearch.includes('ダイハツ') || textToSearch.includes('マツダ') || textToSearch.includes('日産') || textToSearch.includes('ホンダ') || textToSearch.includes('自動車') || textToSearch.includes('オートバックス') || textToSearch.includes('イエローハット')) {
-    emoji = '🚗';
-    bgColor = '#2563eb';
   }
 
-  // 48pxの大きなドロップピン（白フチ＆シャドウ付きで見やすい）
   const htmlContent = `
     <div style="
       background-color: ${bgColor};
@@ -88,13 +74,11 @@ const createCustomIcon = (category?: string, name?: string) => {
 function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSpot, setSelectedSpot] = useState<Location | null>(null);
-  
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
 
   const locations: Location[] = locationsData as Location[];
-
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const circleRef = useRef<L.Circle | null>(null);
@@ -115,15 +99,9 @@ function App() {
       if (userPos) {
         return matchesQuery && spot.distance !== undefined && spot.distance <= 5;
       }
-
       return matchesQuery;
     })
-    .sort((a, b) => {
-      if (a.distance !== undefined && b.distance !== undefined) {
-        return a.distance - b.distance;
-      }
-      return 0;
-    });
+    .sort((a, b) => (a.distance && b.distance ? a.distance - b.distance : 0));
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -134,16 +112,12 @@ function App() {
       });
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
       mapRef.current = map;
-
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 300);
+      setTimeout(() => map.invalidateSize(), 300);
     }
   }, []);
 
@@ -215,9 +189,7 @@ function App() {
         const marker = L.marker([spot.lat, spot.lng], { icon: customIcon })
           .addTo(map)
           .bindPopup(popupContent, { maxWidth: 280 })
-          .on('click', () => {
-            setSelectedSpot(spot);
-          });
+          .on('click', () => setSelectedSpot(spot));
 
         const key = spot.id || `${spot.name}-${idx}`;
         markersRef.current[key] = marker;
@@ -243,34 +215,20 @@ function App() {
           mapRef.current.setView([latitude, longitude], 13, { animate: true });
         }
       },
-      (error) => {
+      () => {
         setIsLocating(false);
-        alert('現在地を取得できませんでした。位置情報の許可を確認してください。');
+        alert('現在地を取得できませんでした。');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
-  const handleSpotSelect = (spot: Location) => {
-    setSelectedSpot(spot);
-    if (mapRef.current && spot.lat && spot.lng) {
-      mapRef.current.setView([spot.lat, spot.lng], 15, { animate: true });
-      const marker = Object.entries(markersRef.current).find(([k]) => k.startsWith(spot.name))?.[1];
-      if (marker) {
-        marker.openPopup();
-      }
-    }
-  };
-
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-100 font-sans relative">
-      
-      {/* 🗺️ 全画面マップ */}
       <main className="w-full h-full absolute inset-0 z-0">
         <div id="map" className="w-full h-full"></div>
       </main>
 
-      {/* 🔍 左上のフローティング操作バー */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 max-w-[calc(100vw-32px)] sm:max-w-md">
         <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-2">
           <button
@@ -314,7 +272,6 @@ function App() {
         )}
       </div>
 
-      {/* 📦 引き出し型パネル（普段は非表示） */}
       {isPanelOpen && (
         <aside className="absolute top-20 left-4 z-[999] w-80 sm:w-96 max-h-[calc(100vh-100px)] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 flex flex-col">
           <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 rounded-t-2xl">
@@ -337,14 +294,12 @@ function App() {
                 <div 
                   key={spot.id || index}
                   onClick={() => {
-                    handleSpotSelect(spot);
+                    if (mapRef.current && spot.lat && spot.lng) {
+                      mapRef.current.setView([spot.lat, spot.lng], 15, { animate: true });
+                    }
                     if (window.innerWidth < 640) setIsPanelOpen(false);
                   }}
-                  className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                    selectedSpot?.name === spot.name 
-                      ? 'bg-indigo-50 border-indigo-400 shadow-sm' 
-                      : 'bg-white border-slate-100 hover:bg-slate-50'
-                  }`}
+                  className="p-2.5 rounded-xl border bg-white border-slate-100 hover:bg-slate-50 cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
                     <h3 className="font-bold text-xs text-slate-800">{spot.name}</h3>
@@ -361,7 +316,6 @@ function App() {
           </div>
         </aside>
       )}
-
     </div>
   );
 }
